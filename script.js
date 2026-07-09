@@ -394,6 +394,9 @@ function resetState() {
     const num = s.dataset.index;
     s.innerHTML = `<div class="pick-number">${parseInt(num) + 1}</div>`;
   });
+
+  // Reset custom stats search dropdown selection
+  resetCustomStatsSelection();
 }
 
 // ─── Hero Grid Rendering ─────────────────────────────
@@ -1029,15 +1032,15 @@ function openEditModal(matchIndex) {
   ].map(o => `<option value="${o.v}" ${match.winner === o.v ? 'selected' : ''}>${o.l}</option>`).join('');
 
   editModalBody.innerHTML = `
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;">
-      <div>
-        <div class="role-team-label blue" style="margin-bottom:10px;">EQUIPO AZUL</div>
+    <div class="role-modal-teams">
+      <div class="role-modal-team">
+        <div class="role-team-label blue">EQUIPO AZUL</div>
         <div class="role-hero-list">
           ${(match.bluePicks||[]).map(n => makeHeroRow(n, 'blue', blueRolesData)).join('')}
         </div>
       </div>
-      <div>
-        <div class="role-team-label red" style="margin-bottom:10px;">EQUIPO ROJO</div>
+      <div class="role-modal-team">
+        <div class="role-team-label red">EQUIPO ROJO</div>
         <div class="role-hero-list">
           ${(match.redPicks||[]).map(n => makeHeroRow(n, 'red', redRolesData)).join('')}
         </div>
@@ -1098,26 +1101,141 @@ editModalCancel.addEventListener('click', closeEditModal);
 // STATS
 // =====================================================
 
-const statsHeroSelect  = document.getElementById('stats-hero-select');
-const statsRoleSelect  = document.getElementById('stats-role-select');
-const statsSearchBtn   = document.getElementById('stats-search-btn');
-const statsResult      = document.getElementById('stats-result');
+const statsHeroSelect      = document.getElementById('stats-hero-select');
+const statsRoleSelect      = document.getElementById('stats-role-select');
+const statsSearchBtn       = document.getElementById('stats-search-btn');
+const statsResult          = document.getElementById('stats-result');
 
-// Populate hero dropdown
-function populateStatsHeroSelect() {
-  statsHeroSelect.innerHTML = '<option value="">-- Selecciona campeón --</option>';
-  [...HEROES].sort((a,b) => a.name.localeCompare(b.name)).forEach(h => {
-    const opt = document.createElement('option');
-    opt.value = h.name;
-    opt.textContent = h.name;
-    statsHeroSelect.appendChild(opt);
+const statsHeroCustom      = document.getElementById('stats-hero-custom');
+const statsHeroTrigger     = document.getElementById('stats-hero-trigger');
+const statsHeroOptions     = document.getElementById('stats-hero-options');
+const statsHeroSearchInput = document.getElementById('stats-hero-search-input');
+const statsHeroOptionsList = document.getElementById('stats-hero-options-list');
+
+// Close stats dropdown if clicked outside
+document.addEventListener('click', e => {
+  if (statsHeroCustom && !statsHeroCustom.contains(e.target)) {
+    if (statsHeroOptions) statsHeroOptions.style.display = 'none';
+    if (statsHeroTrigger) statsHeroTrigger.classList.remove('active');
+  }
+});
+
+// Toggle dropdown options
+if (statsHeroTrigger) {
+  statsHeroTrigger.addEventListener('click', () => {
+    if (!statsHeroOptions) return;
+    const isOpened = statsHeroOptions.style.display === 'block';
+    statsHeroOptions.style.display = isOpened ? 'none' : 'block';
+    if (!isOpened) {
+      statsHeroTrigger.classList.add('active');
+      if (statsHeroSearchInput) {
+        statsHeroSearchInput.focus();
+        statsHeroSearchInput.value = '';
+      }
+      filterStatsDropdown('');
+    } else {
+      statsHeroTrigger.classList.remove('active');
+    }
   });
 }
+
+// Search input handler
+if (statsHeroSearchInput) {
+  statsHeroSearchInput.addEventListener('input', e => {
+    filterStatsDropdown(e.target.value);
+  });
+}
+
+function filterStatsDropdown(query) {
+  if (!statsHeroOptionsList) return;
+  const normalizedQuery = query.toLowerCase().trim();
+  const optionElements = statsHeroOptionsList.querySelectorAll('.custom-option');
+  optionElements.forEach(opt => {
+    const name = opt.dataset.name.toLowerCase();
+    if (name.includes(normalizedQuery)) {
+      opt.style.display = 'flex';
+    } else {
+      opt.style.display = 'none';
+    }
+  });
+}
+
+// Populate hero dropdown custom
+function populateStatsHeroSelect() {
+  if (!statsHeroOptionsList) return;
+  statsHeroOptionsList.innerHTML = '';
+  
+  // Sort heroes alphabetically
+  const sortedHeroes = [...HEROES].sort((a,b) => a.name.localeCompare(b.name));
+  
+  sortedHeroes.forEach(h => {
+    const optDiv = document.createElement('div');
+    optDiv.className = 'custom-option';
+    optDiv.dataset.name = h.name;
+    
+    // Add current selection highlight class
+    if (statsHeroSelect && statsHeroSelect.value === h.name) {
+      optDiv.classList.add('selected');
+    }
+    
+    optDiv.innerHTML = `
+      <img src="${h.avatar}" onerror="this.style.background='${h.color}'" />
+      <span class="custom-option-name">${h.name}</span>
+    `;
+    
+    optDiv.addEventListener('click', () => {
+      if (statsHeroSelect) {
+        statsHeroSelect.value = h.name;
+      }
+      
+      // Update trigger content with avatar and name
+      if (statsHeroTrigger) {
+        const triggerContent = statsHeroTrigger.querySelector('.custom-trigger-content');
+        if (triggerContent) {
+          triggerContent.innerHTML = `
+            <img src="${h.avatar}" onerror="this.style.background='${h.color}'" style="width:24px; height:24px; border-radius:50%; object-fit:cover;" />
+            <span>${h.name}</span>
+          `;
+        }
+      }
+      
+      // Highlight selected class
+      statsHeroOptionsList.querySelectorAll('.custom-option').forEach(el => el.classList.remove('selected'));
+      optDiv.classList.add('selected');
+      
+      // Hide options
+      if (statsHeroOptions) statsHeroOptions.style.display = 'none';
+      if (statsHeroTrigger) statsHeroTrigger.classList.remove('active');
+      
+      // Fire change event
+      if (statsHeroSelect) {
+        statsHeroSelect.dispatchEvent(new Event('change'));
+      }
+    });
+    
+    statsHeroOptionsList.appendChild(optDiv);
+  });
+}
+
+// Reset custom trigger selection when draft starts or login state changes
+function resetCustomStatsSelection() {
+  if (statsHeroSelect) statsHeroSelect.value = '';
+  if (statsHeroTrigger) {
+    const triggerContent = statsHeroTrigger.querySelector('.custom-trigger-content');
+    if (triggerContent) {
+      triggerContent.innerHTML = '-- Selecciona campeón --';
+    }
+  }
+  populateStatsHeroSelect();
+}
+
 populateStatsHeroSelect();
 
 statsSearchBtn.addEventListener('click', computeStats);
-statsHeroSelect.addEventListener('change', () => { if (statsRoleSelect.value) computeStats(); });
-statsRoleSelect.addEventListener('change', () => { if (statsHeroSelect.value) computeStats(); });
+if (statsHeroSelect) {
+  statsHeroSelect.addEventListener('change', () => { if (statsRoleSelect.value) computeStats(); });
+}
+statsRoleSelect.addEventListener('change', () => { if (statsHeroSelect && statsHeroSelect.value) computeStats(); });
 
 function computeStats() {
   const heroName = statsHeroSelect.value;

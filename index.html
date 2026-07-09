@@ -216,9 +216,17 @@
         <div class="stats-controls">
           <div class="stats-select-group">
             <label class="stats-label">CAMPEÓN</label>
-            <select id="stats-hero-select" class="stats-select">
-              <option value="">-- Selecciona campeón --</option>
-            </select>
+            <div class="custom-select-container" id="stats-hero-custom">
+              <div class="custom-select-trigger" id="stats-hero-trigger">
+                <span class="custom-trigger-content">-- Selecciona campeón --</span>
+                <span class="custom-arrow">&#9662;</span>
+              </div>
+              <div class="custom-options-container" id="stats-hero-options" style="display: none;">
+                <input type="text" id="stats-hero-search-input" class="custom-search-input" placeholder="Buscar..." autocomplete="off" />
+                <div class="custom-options-list" id="stats-hero-options-list"></div>
+              </div>
+            </div>
+            <input type="hidden" id="stats-hero-select" value="" />
           </div>
           <div class="stats-select-group">
             <label class="stats-label">LÍNEA</label>

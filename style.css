@@ -1552,35 +1552,47 @@ body {
 .role-hero-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: rgba(255,255,255,0.03);
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(20, 22, 40, 0.6);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 8px 12px;
+  padding: 8px 14px;
 }
 .role-hero-row img {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
 .role-hero-name {
   flex: 1;
   font-size: 13px;
   color: var(--text-primary);
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .role-hero-select {
-  background: rgba(255,255,255,0.05);
+  background: rgba(10, 11, 18, 0.9);
   border: 1px solid var(--border-active);
   color: var(--text-primary);
-  padding: 5px 10px;
+  padding: 6px 12px;
   border-radius: 6px;
   font-family: 'Inter', sans-serif;
   font-size: 12px;
   cursor: pointer;
   outline: none;
+  width: 100px;
+  flex-shrink: 0;
+  text-align: center;
+}
+.role-hero-select option {
+  background: #0a0b12;
+  color: var(--text-primary);
 }
 .role-modal-result {
   background: rgba(255,255,255,0.02);
@@ -1679,4 +1691,129 @@ body {
   color: var(--text-muted);
   letter-spacing: 0.5px;
   margin-left: 3px;
+}
+
+/* ===========================
+   CUSTOM SELECT (Stats Search Dropdown)
+   =========================== */
+.custom-select-container {
+  position: relative;
+  width: 100%;
+}
+.custom-select-trigger {
+  background: rgba(20, 22, 40, 0.95);
+  border: 1px solid var(--border-active);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: border-color var(--transition-fast);
+  user-select: none;
+  min-height: 40px;
+  box-sizing: border-box;
+}
+.custom-select-trigger:hover, .custom-select-trigger.active {
+  border-color: var(--gold-primary);
+  background: rgba(245, 158, 11, 0.05);
+}
+.custom-trigger-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.custom-trigger-content img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border-subtle);
+}
+.custom-arrow {
+  color: var(--gold-primary);
+  font-size: 10px;
+  transition: transform var(--transition-fast);
+  margin-left: 8px;
+}
+.custom-select-trigger.active .custom-arrow {
+  transform: rotate(180deg);
+}
+.custom-options-container {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #12131f;
+  border: 1px solid var(--gold-primary);
+  border-radius: var(--radius-md);
+  z-index: 9000;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.custom-search-input {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+  border-color: var(--border-active);
+}
+.custom-search-input:focus {
+  border-color: var(--gold-primary);
+}
+.custom-options-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 4px;
+}
+/* Scrollbar */
+.custom-options-list::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-options-list::-webkit-scrollbar-thumb {
+  background: var(--border-active);
+  border-radius: 3px;
+}
+.custom-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.custom-option:hover {
+  background: rgba(245, 158, 11, 0.08);
+}
+.custom-option.selected {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.custom-option img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border-subtle);
+}
+.custom-option-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
 }
