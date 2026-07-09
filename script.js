@@ -314,7 +314,7 @@ function renderHistoryList() {
 
 async function init() {
   if (currentUser) {
-    await loadHistoryFromStorage();
+    await Promise.all([loadHistoryFromStorage(), loadTiersFromStorage()]);
   }
   resetState();
   renderHeroGrid();
@@ -399,10 +399,11 @@ function renderHeroGrid() {
       .join("")
       .substring(0, 2);
 
-        card.innerHTML = `
+    card.innerHTML = `
       <img src="${hero.avatar}" class="hero-avatar" style="object-fit:cover;" onerror="this.style.background='${hero.color}'" />
       <div class="hero-card-name">${hero.name}</div>
       <div class="hero-role-dot" style="background: ${ROLE_COLORS[hero.role]}"></div>
+      ${tierState[hero.name] ? `<div class="tier-badge ${tierState[hero.name].toLowerCase()}">${tierState[hero.name]}</div>` : ''}
     `;
 
     if (!isBanned && !isPicked) {
@@ -859,3 +860,179 @@ btnLogout.addEventListener("click", () => {
   state.history = [];
   renderHistoryList();
 });
+
+// =====================================================
+// TIER LIST
+// =====================================================
+
+const TIERS = ['SS', 'S', 'A', 'B', 'C', 'D'];
+
+// tierState maps heroName -> tier string (e.g. 'SS', 'A') or undefined
+let tierState = {};
+
+async function loadTiersFromStorage() {
+  if (!currentUser) return;
+  try {
+    const docRef = doc(db, 'tiers', currentUser);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      tierState = docSnap.data().tiers || {};
+    } else {
+      tierState = {};
+    }
+  } catch (e) {
+    console.error('Error loading tiers:', e);
+    tierState = {};
+  }
+}
+
+async function saveTiersToStorage() {
+  if (!currentUser) return;
+  try {
+    const docRef = doc(db, 'tiers', currentUser);
+    await setDoc(docRef, { tiers: tierState });
+  } catch (e) {
+    console.error('Error saving tiers:', e);
+  }
+}
+
+function renderTierList() {
+  const table = document.getElementById('tierlist-table');
+  const unrankedPool = document.getElementById('tierlist-unranked');
+  if (!table || !unrankedPool) return;
+
+  table.innerHTML = '';
+
+  // Build a set of ranked heroes
+  const ranked = new Set(Object.keys(tierState));
+
+  // Render each tier row
+  TIERS.forEach(tier => {
+    const row = document.createElement('div');
+    row.className = 'tier-row';
+    row.dataset.tier = tier;
+
+    const label = document.createElement('div');
+    label.className = `tier-label ${tier.toLowerCase()}`;
+    label.textContent = tier;
+
+    const heroesZone = document.createElement('div');
+    heroesZone.className = 'tier-heroes';
+    heroesZone.dataset.tier = tier;
+
+    // Add heroes in this tier
+    HEROES.forEach(hero => {
+      if (tierState[hero.name] === tier) {
+        heroesZone.appendChild(makeChip(hero));
+      }
+    });
+
+    // Drag-over highlight
+    heroesZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      heroesZone.classList.add('drag-over');
+    });
+    heroesZone.addEventListener('dragleave', () => heroesZone.classList.remove('drag-over'));
+    heroesZone.addEventListener('drop', e => {
+      e.preventDefault();
+      heroesZone.classList.remove('drag-over');
+      const heroName = e.dataTransfer.getData('heroName');
+      if (!heroName) return;
+      tierState[heroName] = tier;
+      saveTiersToStorage();
+      renderTierList();
+      renderHeroGrid(); // refresh draft badges
+    });
+
+    row.appendChild(label);
+    row.appendChild(heroesZone);
+    table.appendChild(row);
+  });
+
+  // Unranked pool
+  unrankedPool.innerHTML = '';
+  HEROES.forEach(hero => {
+    if (!ranked.has(hero.name)) {
+      unrankedPool.appendChild(makeChip(hero));
+    }
+  });
+
+  // Drop on unranked = remove from tier
+  unrankedPool.addEventListener('dragover', e => {
+    e.preventDefault();
+    unrankedPool.classList.add('drag-over');
+  });
+  unrankedPool.addEventListener('dragleave', () => unrankedPool.classList.remove('drag-over'));
+  unrankedPool.addEventListener('drop', e => {
+    e.preventDefault();
+    unrankedPool.classList.remove('drag-over');
+    const heroName = e.dataTransfer.getData('heroName');
+    if (!heroName) return;
+    delete tierState[heroName];
+    saveTiersToStorage();
+    renderTierList();
+    renderHeroGrid();
+  });
+}
+
+function makeChip(hero) {
+  const chip = document.createElement('div');
+  chip.className = 'tier-hero-chip';
+  chip.draggable = true;
+  chip.dataset.heroName = hero.name;
+  chip.title = hero.name;
+  chip.innerHTML = `
+    <img src="${hero.avatar}" onerror="this.style.background='${hero.color}'" />
+    <div class="chip-name">${hero.name}</div>
+  `;
+  chip.addEventListener('dragstart', e => {
+    e.dataTransfer.setData('heroName', hero.name);
+    chip.classList.add('dragging');
+  });
+  chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+  return chip;
+}
+
+// ─── Tab switching ────────────────────────────────────
+const appTabs = document.getElementById('app-tabs');
+const viewDraft = document.getElementById('view-draft');
+const viewTierlist = document.getElementById('view-tierlist');
+
+appTabs.addEventListener('click', async e => {
+  const tab = e.target.closest('.app-tab');
+  if (!tab) return;
+  const view = tab.dataset.view;
+
+  appTabs.querySelectorAll('.app-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+
+  if (view === 'draft') {
+    viewDraft.style.display = '';
+    viewTierlist.style.display = 'none';
+  } else if (view === 'tierlist') {
+    viewDraft.style.display = 'none';
+    viewTierlist.style.display = '';
+    if (currentUser && Object.keys(tierState).length === 0) {
+      await loadTiersFromStorage();
+    }
+    renderTierList();
+  }
+});
+
+// Load tiers when user logs in (alongside history)
+document.getElementById('btn-login').addEventListener('click', async () => {
+  // tiers loaded after auth succeeds — handled by wrapping init
+}, { once: false });
+
+// Patch the existing login handler to also load tiers
+const _origBtnLogin = document.getElementById('btn-login');
+const _alreadyPatched = _origBtnLogin.dataset.tierpatch;
+if (!_alreadyPatched) {
+  _origBtnLogin.dataset.tierpatch = '1';
+  _origBtnLogin.addEventListener('click', async () => {
+    if (currentUser) {
+      await loadTiersFromStorage();
+    }
+  });
+}
+

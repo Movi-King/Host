@@ -1046,6 +1046,81 @@ body {
 .history-item-type.ban { color: var(--red-glow); }
 .history-item-type.pick { color: var(--gold-light); }
 
+
+/* ===========================
+   HISTORY PANEL
+   =========================== */
+.draft-history {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  padding: 16px;
+  margin-top: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.history-header {
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+}
+
+.history-header h3 {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--gold-primary);
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  font-size: 13px;
+  animation: slideIn 0.3s ease;
+}
+
+.history-item.blue {
+  border-left: 4px solid var(--blue-primary);
+}
+
+.history-item.red {
+  border-left: 4px solid var(--red-primary);
+}
+
+.history-item-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.history-item-text {
+  flex: 1;
+}
+
+.history-item-type {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.history-item-type.ban { color: var(--red-glow); }
+.history-item-type.pick { color: var(--gold-light); }
+
 @keyframes slideIn {
   from { opacity: 0; transform: translateX(-10px); }
   to { opacity: 1; transform: translateX(0); }
@@ -1057,3 +1132,206 @@ body {
   border-color: var(--gold-primary);
   box-shadow: 0 0 15px var(--gold-glow);
 }
+
+/* ===========================
+   APP TABS
+   =========================== */
+.app-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 24px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.app-tab {
+  padding: 10px 28px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-muted);
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.app-tab:hover {
+  color: var(--text-primary);
+}
+.app-tab.active {
+  color: var(--gold-primary);
+  border-bottom-color: var(--gold-primary);
+}
+
+/* ===========================
+   TIER LIST VIEW
+   =========================== */
+.tierlist-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.tierlist-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.tierlist-title {
+  font-family: 'Cinzel', serif;
+  font-size: 28px;
+  color: var(--gold-primary);
+  letter-spacing: 4px;
+  margin-bottom: 6px;
+}
+.tierlist-subtitle {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Tier rows */
+.tierlist-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+.tier-row {
+  display: flex;
+  align-items: stretch;
+  min-height: 72px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  transition: box-shadow var(--transition-fast);
+}
+.tier-row.drag-over {
+  box-shadow: 0 0 0 2px var(--gold-primary);
+}
+.tier-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+  font-family: 'Cinzel', serif;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+.tier-label.ss { background: #ff4757; color: #fff; }
+.tier-label.s  { background: #ff6b35; color: #fff; }
+.tier-label.a  { background: #ffa502; color: #fff; }
+.tier-label.b  { background: #2ed573; color: #111; }
+.tier-label.c  { background: #1e90ff; color: #fff; }
+.tier-label.d  { background: #747d8c; color: #fff; }
+
+.tier-heroes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  flex: 1;
+  align-content: flex-start;
+  background: rgba(255,255,255,0.02);
+  min-height: 72px;
+}
+.tier-heroes.drag-over {
+  background: rgba(245,158,11,0.07);
+}
+
+/* Unranked pool */
+.tierlist-unranked-section {
+  margin-top: 8px;
+}
+.tierlist-unranked-label {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  padding-left: 4px;
+}
+.tierlist-unranked-pool {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  min-height: 80px;
+}
+.tierlist-unranked-pool.drag-over {
+  background: rgba(245,158,11,0.05);
+  border-color: var(--gold-primary);
+}
+
+/* Draggable hero chip in tier list */
+.tier-hero-chip {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: grab;
+  border: 2px solid transparent;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+  flex-shrink: 0;
+}
+.tier-hero-chip:active { cursor: grabbing; }
+.tier-hero-chip:hover {
+  transform: scale(1.1);
+  border-color: var(--gold-primary);
+  z-index: 10;
+}
+.tier-hero-chip img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.tier-hero-chip .chip-name {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0,0,0,0.75);
+  font-size: 8px;
+  text-align: center;
+  padding: 2px 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fff;
+}
+.tier-hero-chip.dragging {
+  opacity: 0.4;
+  transform: scale(0.9);
+}
+
+/* ===========================
+   TIER BADGE ON HERO CARDS (Draft)
+   =========================== */
+.hero-card {
+  position: relative;
+}
+.tier-badge {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  z-index: 10;
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  font-weight: 900;
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1.4;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.6);
+}
+.tier-badge.ss { background: #ff4757; color: #fff; }
+.tier-badge.s  { background: #ff6b35; color: #fff; }
+.tier-badge.a  { background: #ffa502; color: #fff; }
+.tier-badge.b  { background: #2ed573; color: #111; }
+.tier-badge.c  { background: #1e90ff; color: #fff; }
+.tier-badge.d  { background: #747d8c; color: #fff; }
