@@ -162,6 +162,8 @@ const DRAFT_ORDER = [
 ];
 
 // ─── State ───────────────────────────────────────────
+let currentUser = null;
+
 let state = {
   currentStep: 0,
   selectedHero: null,
@@ -213,7 +215,7 @@ function addDraftToHistory() {
 
 // ─── Persistence ──────────────────────────────────────
 function loadHistoryFromStorage() {
-  const saved = localStorage.getItem('hokDraftHistory');
+  const saved = localStorage.getItem('hokDraftHistory_' + currentUser);
   if (saved) {
     state.history = JSON.parse(saved);
     draftCount = state.history.length + 1;
@@ -225,7 +227,7 @@ function loadHistoryFromStorage() {
 }
 
 function saveHistoryToStorage() {
-  localStorage.setItem('hokDraftHistory', JSON.stringify(state.history));
+  localStorage.setItem('hokDraftHistory_' + currentUser, JSON.stringify(state.history));
 }
 
 function renderHistoryList() {
@@ -266,7 +268,7 @@ function renderHistoryList() {
 }
 
 function init() {
-  loadHistoryFromStorage();
+
   resetState();
   renderHeroGrid();
   renderProgressDots();
@@ -766,3 +768,45 @@ function initParticles() {
 
 // ─── Start ───────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", init);
+
+// ─── Login Logic ──────────────────────────────────────
+const USERS = {
+  "acolyte": "marrymeold",
+  "movila": "movila"
+};
+
+const loginOverlay = document.getElementById("login-overlay");
+const btnLogin = document.getElementById("btn-login");
+const loginUsername = document.getElementById("login-username");
+const loginPassword = document.getElementById("login-password");
+const loginError = document.getElementById("login-error");
+const btnLogout = document.getElementById("btn-logout");
+const displayUsername = document.getElementById("display-username");
+
+btnLogin.addEventListener("click", () => {
+  const user = loginUsername.value.trim().toLowerCase();
+  const pass = loginPassword.value.trim();
+  
+  if (USERS[user] && USERS[user] === pass) {
+    currentUser = user;
+    loginOverlay.style.display = "none";
+    loginError.style.display = "none";
+    displayUsername.textContent = "(" + user + ")";
+    
+    // Load history for this user
+    loadHistoryFromStorage();
+    renderHeroGrid();
+  } else {
+    loginError.style.display = "block";
+  }
+});
+
+btnLogout.addEventListener("click", () => {
+  currentUser = null;
+  loginUsername.value = "";
+  loginPassword.value = "";
+  loginOverlay.style.display = "flex";
+  resetState();
+  state.history = [];
+  renderHistoryList();
+});
