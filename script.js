@@ -176,6 +176,9 @@ const DRAFT_ORDER = [
   { team: "red",  type: "pick" },
 ];
 
+// Role label map (defined early so renderHistoryList can use it before ROLE_LABELS is declared)
+const ROLE_LABELS_SAFE = { 'clash lane': 'Top', 'jungle': 'Jungla', 'mid': 'Mid', 'farm': 'Farm', 'roam': 'Roam' };
+
 // ─── State ───────────────────────────────────────────
 let currentUser = localStorage.getItem('hokCurrentUser') || null;
 
@@ -286,20 +289,25 @@ function renderHistoryList() {
 
     const rolePill = (heroName, rolesMap) => {
       const r = rolesMap && rolesMap[heroName];
-      return r ? `<span class="role-pill">${r}</span>` : '';
+      if (!r) return '';
+      const label = ROLE_LABELS_SAFE[r] || r;
+      return `<span class="role-pill">${label}</span>`;
     };
 
     const winnerBadge = match.winner
       ? `<span class="winner-badge ${match.winner}">${match.winner === 'draw' ? 'EMPATE' : match.winner === 'blue' ? 'VICTORIA AZUL' : 'VICTORIA ROJA'}</span>`
       : '';
 
+    // Store real index on the element itself (no innerHTML event)
+    historyItem.dataset.matchIndex = realIndex;
+
     historyItem.innerHTML = `
       <div style="font-weight:bold; margin-bottom: 6px; color: var(--gold-primary); display:flex; justify-content:space-between; align-items:center; gap:8px;">
         <span>MATCH ${realMatchNum}</span>
-        <div style="display:flex; gap:6px; align-items:center;">
+        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
           ${winnerBadge}
           <span style="font-size:10px; color:#888; font-weight:normal;">${dateStr}</span>
-          <button class="history-edit-btn" data-index="${realIndex}">✏ EDIT</button>
+          <button class="history-edit-btn">&#9998; EDIT</button>
         </div>
       </div>
       <div style="display:flex; justify-content:space-between; font-size:11px; gap:8px;">
@@ -328,6 +336,16 @@ function renderHistoryList() {
     historyList.appendChild(historyItem);
   });
 }
+
+// Single delegated listener on the history list container
+historyList.addEventListener('click', e => {
+  const btn = e.target.closest('.history-edit-btn');
+  if (!btn) return;
+  const item = btn.closest('.history-item');
+  if (!item) return;
+  const idx = parseInt(item.dataset.matchIndex, 10);
+  if (!isNaN(idx)) openEditModal(idx);
+});
 
 async function init() {
   if (currentUser) {
@@ -975,13 +993,23 @@ let _editIndex = -1;
 function openEditModal(matchIndex) {
   _editIndex = matchIndex;
   const match = state.history[matchIndex];
-  if (!match) return;
+  if (!match) {
+    console.warn('openEditModal: no match at index', matchIndex);
+    return;
+  }
+
+  // Normalise old drafts that may not have role/winner fields
+  const blueRolesData = match.blueRoles || {};
+  const redRolesData  = match.redRoles  || {};
+
+  const INGAME_R = ['clash lane', 'jungle', 'mid', 'farm', 'roam'];
+  const R_LABELS  = { 'clash lane': 'Top', 'jungle': 'Jungla', 'mid': 'Mid', 'farm': 'Farm', 'roam': 'Roam' };
 
   const makeHeroRow = (heroName, teamSide, rolesMap) => {
     const hero = HEROES.find(h => h.name === heroName);
     const currentRole = (rolesMap && rolesMap[heroName]) || '';
-    const sel = INGAME_ROLES.map(r =>
-      `<option value="${r}" ${currentRole === r ? 'selected' : ''}>${ROLE_LABELS[r]}</option>`
+    const sel = INGAME_R.map(r =>
+      `<option value="${r}" ${currentRole === r ? 'selected' : ''}>${R_LABELS[r]}</option>`
     ).join('');
     return `
       <div class="role-hero-row">
@@ -997,7 +1025,7 @@ function openEditModal(matchIndex) {
   const winnerOpts = [
     { v: 'blue', l: 'VICTORIA AZUL' },
     { v: 'draw', l: 'EMPATE' },
-    { v: 'red', l: 'VICTORIA ROJA' }
+    { v: 'red',  l: 'VICTORIA ROJA' }
   ].map(o => `<option value="${o.v}" ${match.winner === o.v ? 'selected' : ''}>${o.l}</option>`).join('');
 
   editModalBody.innerHTML = `
@@ -1005,13 +1033,13 @@ function openEditModal(matchIndex) {
       <div>
         <div class="role-team-label blue" style="margin-bottom:10px;">EQUIPO AZUL</div>
         <div class="role-hero-list">
-          ${(match.bluePicks||[]).map(n => makeHeroRow(n, 'blue', match.blueRoles)).join('')}
+          ${(match.bluePicks||[]).map(n => makeHeroRow(n, 'blue', blueRolesData)).join('')}
         </div>
       </div>
       <div>
         <div class="role-team-label red" style="margin-bottom:10px;">EQUIPO ROJO</div>
         <div class="role-hero-list">
-          ${(match.redPicks||[]).map(n => makeHeroRow(n, 'red', match.redRoles)).join('')}
+          ${(match.redPicks||[]).map(n => makeHeroRow(n, 'red', redRolesData)).join('')}
         </div>
       </div>
     </div>

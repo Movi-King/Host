@@ -1364,7 +1364,7 @@ body {
   padding: 24px;
   margin-bottom: 28px;
 }
-.stats-select-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px; }
+.stats-select-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px; }
 .stats-label {
   font-size: 11px;
   letter-spacing: 2px;
@@ -1373,19 +1373,26 @@ body {
   font-family: 'Cinzel', serif;
 }
 .stats-select {
-  background: rgba(255,255,255,0.05);
+  background: rgba(20,22,40,0.95);
   border: 1px solid var(--border-active);
   color: var(--text-primary);
-  padding: 10px 14px;
+  padding: 10px 36px 10px 14px;
   border-radius: var(--radius-md);
   font-family: 'Inter', sans-serif;
   font-size: 13px;
   cursor: pointer;
-  appearance: none;
+  width: 100%;
+  min-width: 0;
   outline: none;
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23f59e0b' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
-.stats-select:focus { border-color: var(--gold-primary); background: rgba(245,158,11,0.06); }
+.stats-select:focus { border-color: var(--gold-primary); background-color: rgba(245,158,11,0.06); }
+.stats-select option { background: #12131f; color: var(--text-primary); }
 .stats-btn {
   background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
   color: #000;
