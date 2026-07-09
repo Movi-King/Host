@@ -216,17 +216,19 @@ const progressDots = document.getElementById("progress-dots");
 // ─── Init ────────────────────────────────────────────
 let draftCount = 1;
 
-async function addDraftToHistory() {
+async function addDraftToHistory(extraData = {}) {
   const matchRecord = {
     bluePicks: [...state.bluePicks],
     redPicks: [...state.redPicks],
     blueBans: [...state.blueBans],
     redBans: [...state.redBans],
-    date: new Date().toISOString()
+    date: new Date().toISOString(),
+    blueRoles: extraData.blueRoles || {},
+    redRoles:  extraData.redRoles  || {},
+    winner:    extraData.winner    || null
   };
   state.history.push(matchRecord);
   await saveHistoryToStorage();
-  
   draftCount++;
   renderHistoryList();
 }
@@ -268,28 +270,43 @@ function renderHistoryList() {
   }
   // Render in reverse so newest is on top
   [...state.history].reverse().forEach((match, index) => {
-    const realMatchNum = state.history.length - index;
-    const dateStr = match.date ? new Date(match.date).toLocaleString() : '';
-    const historyItem = document.createElement("div");
-    historyItem.className = "history-item";
-    historyItem.style.display = "block";
-    historyItem.style.padding = "12px";
-    
+    const realIndex = state.history.length - 1 - index;
+    const realMatchNum = realIndex + 1;
+    const historyItem = document.createElement('div');
+    historyItem.className = 'history-item';
+
+    const dateStr = match.date
+      ? new Date(match.date).toLocaleDateString('es-ES', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })
+      : '';
+
     const heroImg = (name, border) => {
       const h = HEROES.find(x => x.name === name);
       return `<img src="${h ? h.avatar : ''}" style="width:28px; height:28px; border-radius:4px; object-fit:cover; border:2px solid ${border};" title="${name}" onerror="this.style.background='#444'">`;
     };
 
+    const rolePill = (heroName, rolesMap) => {
+      const r = rolesMap && rolesMap[heroName];
+      return r ? `<span class="role-pill">${r}</span>` : '';
+    };
+
+    const winnerBadge = match.winner
+      ? `<span class="winner-badge ${match.winner}">${match.winner === 'draw' ? 'EMPATE' : match.winner === 'blue' ? 'VICTORIA AZUL' : 'VICTORIA ROJA'}</span>`
+      : '';
+
     historyItem.innerHTML = `
-      <div style="font-weight:bold; margin-bottom: 6px; color: var(--gold-primary); display:flex; justify-content:space-between; align-items:center;">
+      <div style="font-weight:bold; margin-bottom: 6px; color: var(--gold-primary); display:flex; justify-content:space-between; align-items:center; gap:8px;">
         <span>MATCH ${realMatchNum}</span>
-        <span style="font-size:10px; color:#888; font-weight:normal;">${dateStr}</span>
+        <div style="display:flex; gap:6px; align-items:center;">
+          ${winnerBadge}
+          <span style="font-size:10px; color:#888; font-weight:normal;">${dateStr}</span>
+          <button class="history-edit-btn" data-index="${realIndex}">✏ EDIT</button>
+        </div>
       </div>
       <div style="display:flex; justify-content:space-between; font-size:11px; gap:8px;">
         <div style="flex:1;">
           <div style="color:var(--blue-primary); margin-bottom:4px; font-weight:bold; font-size:10px;">BLUE PICKS</div>
-          <div style="display:flex; gap:3px; flex-wrap:wrap; margin-bottom:6px;">
-            ${(match.bluePicks||[]).map(p => heroImg(p, 'var(--blue-primary)')).join('')}
+          <div style="display:flex; gap:3px; flex-wrap:wrap; margin-bottom:6px; align-items:center;">
+            ${(match.bluePicks||[]).map(p => heroImg(p, 'var(--blue-primary)') + rolePill(p, match.blueRoles)).join('')}
           </div>
           <div style="color:#ff6b6b; margin-bottom:3px; font-weight:bold; font-size:10px;">BLUE BANS</div>
           <div style="display:flex; gap:3px; flex-wrap:wrap; opacity:0.6;">
@@ -298,8 +315,8 @@ function renderHistoryList() {
         </div>
         <div style="flex:1; text-align:right;">
           <div style="color:var(--red-primary); margin-bottom:4px; font-weight:bold; font-size:10px;">RED PICKS</div>
-          <div style="display:flex; gap:3px; flex-wrap:wrap; justify-content:flex-end; margin-bottom:6px;">
-            ${(match.redPicks||[]).map(p => heroImg(p, 'var(--red-primary)')).join('')}
+          <div style="display:flex; gap:3px; flex-wrap:wrap; justify-content:flex-end; margin-bottom:6px; align-items:center;">
+            ${(match.redPicks||[]).map(p => heroImg(p, 'var(--red-primary)') + rolePill(p, match.redRoles)).join('')}
           </div>
           <div style="color:#ff6b6b; margin-bottom:3px; font-weight:bold; font-size:10px;">RED BANS</div>
           <div style="display:flex; gap:3px; flex-wrap:wrap; justify-content:flex-end; opacity:0.6;">
@@ -473,12 +490,12 @@ function confirmSelection() {
     }
   }
 
-state.selectedHero = null;
+  state.selectedHero = null;
   state.currentStep++;
 
   if (state.currentStep >= DRAFT_ORDER.length) {
     clearInterval(state.timerInterval);
-    addDraftToHistory();
+    openRoleModal(); // open role assignment modal instead of saving directly
   } else {
     resetTimer();
   }
@@ -862,6 +879,325 @@ btnLogout.addEventListener("click", () => {
 });
 
 // =====================================================
+// ROLE ASSIGNMENT MODAL
+// =====================================================
+
+const INGAME_ROLES = ['clash lane', 'jungle', 'mid', 'farm', 'roam'];
+const ROLE_LABELS  = { 'clash lane': 'Top', 'jungle': 'Jungla', 'mid': 'Mid', 'farm': 'Farm', 'roam': 'Roam' };
+
+const roleModal     = document.getElementById('role-modal');
+const roleBlueList  = document.getElementById('role-blue-list');
+const roleRedList   = document.getElementById('role-red-list');
+const roleModalSave = document.getElementById('role-modal-save');
+const roleModalSkip = document.getElementById('role-modal-skip');
+
+let _pendingBlue = [];
+let _pendingRed  = [];
+let _pendingWinner = null;
+
+function openRoleModal() {
+  _pendingBlue   = [...state.bluePicks];
+  _pendingRed    = [...state.redPicks];
+  _pendingWinner = null;
+
+  roleBlueList.innerHTML = '';
+  roleRedList.innerHTML  = '';
+
+  const makeRow = (heroName, teamSide) => {
+    const hero = HEROES.find(h => h.name === heroName);
+    const row = document.createElement('div');
+    row.className = 'role-hero-row';
+    const sel = INGAME_ROLES.map(r =>
+      `<option value="${r}" ${hero && hero.role === r ? 'selected' : ''}>${ROLE_LABELS[r]}</option>`
+    ).join('');
+    row.innerHTML = `
+      <img src="${hero ? hero.avatar : ''}" onerror="this.style.background='#444'" />
+      <span class="role-hero-name">${heroName}</span>
+      <select class="role-hero-select" data-hero="${heroName}" data-team="${teamSide}">
+        <option value="">-- línea --</option>
+        ${sel}
+      </select>
+    `;
+    return row;
+  };
+
+  _pendingBlue.forEach(name => roleBlueList.appendChild(makeRow(name, 'blue')));
+  _pendingRed.forEach(name  => roleRedList.appendChild(makeRow(name,  'red')));
+
+  // Result buttons
+  document.querySelectorAll('.role-result-btn').forEach(btn => {
+    btn.classList.remove('selected');
+    btn.onclick = () => {
+      _pendingWinner = btn.dataset.winner;
+      document.querySelectorAll('.role-result-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    };
+  });
+
+  roleModal.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeRoleModal() {
+  roleModal.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+roleModalSave.addEventListener('click', async () => {
+  const blueRoles = {};
+  const redRoles  = {};
+  roleModal.querySelectorAll('.role-hero-select').forEach(sel => {
+    if (!sel.value) return;
+    if (sel.dataset.team === 'blue') blueRoles[sel.dataset.hero] = sel.value;
+    else                              redRoles[sel.dataset.hero]  = sel.value;
+  });
+  closeRoleModal();
+  await addDraftToHistory({ blueRoles, redRoles, winner: _pendingWinner });
+});
+
+roleModalSkip.addEventListener('click', async () => {
+  closeRoleModal();
+  await addDraftToHistory();
+});
+
+// =====================================================
+// HISTORY EDIT MODAL
+// =====================================================
+
+const editModal       = document.getElementById('edit-modal');
+const editModalBody   = document.getElementById('edit-modal-body');
+const editModalSave   = document.getElementById('edit-modal-save');
+const editModalDelete = document.getElementById('edit-modal-delete');
+const editModalCancel = document.getElementById('edit-modal-cancel');
+
+let _editIndex = -1;
+
+function openEditModal(matchIndex) {
+  _editIndex = matchIndex;
+  const match = state.history[matchIndex];
+  if (!match) return;
+
+  const makeHeroRow = (heroName, teamSide, rolesMap) => {
+    const hero = HEROES.find(h => h.name === heroName);
+    const currentRole = (rolesMap && rolesMap[heroName]) || '';
+    const sel = INGAME_ROLES.map(r =>
+      `<option value="${r}" ${currentRole === r ? 'selected' : ''}>${ROLE_LABELS[r]}</option>`
+    ).join('');
+    return `
+      <div class="role-hero-row">
+        <img src="${hero ? hero.avatar : ''}" onerror="this.style.background='#444'" />
+        <span class="role-hero-name">${heroName}</span>
+        <select class="role-hero-select edit-role-sel" data-hero="${heroName}" data-team="${teamSide}">
+          <option value="">-- línea --</option>
+          ${sel}
+        </select>
+      </div>`;
+  };
+
+  const winnerOpts = [
+    { v: 'blue', l: 'VICTORIA AZUL' },
+    { v: 'draw', l: 'EMPATE' },
+    { v: 'red', l: 'VICTORIA ROJA' }
+  ].map(o => `<option value="${o.v}" ${match.winner === o.v ? 'selected' : ''}>${o.l}</option>`).join('');
+
+  editModalBody.innerHTML = `
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;">
+      <div>
+        <div class="role-team-label blue" style="margin-bottom:10px;">EQUIPO AZUL</div>
+        <div class="role-hero-list">
+          ${(match.bluePicks||[]).map(n => makeHeroRow(n, 'blue', match.blueRoles)).join('')}
+        </div>
+      </div>
+      <div>
+        <div class="role-team-label red" style="margin-bottom:10px;">EQUIPO ROJO</div>
+        <div class="role-hero-list">
+          ${(match.redPicks||[]).map(n => makeHeroRow(n, 'red', match.redRoles)).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="role-modal-result">
+      <label class="stats-label">RESULTADO</label>
+      <div style="margin-top:10px;">
+        <select class="stats-select" id="edit-winner-sel" style="width:auto;">
+          <option value="">-- Sin resultado --</option>
+          ${winnerOpts}
+        </select>
+      </div>
+    </div>
+  `;
+
+  editModal.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeEditModal() {
+  editModal.style.display = 'none';
+  document.body.style.overflow = '';
+  _editIndex = -1;
+}
+
+editModalSave.addEventListener('click', async () => {
+  if (_editIndex < 0) return;
+  const blueRoles = {};
+  const redRoles  = {};
+  editModal.querySelectorAll('.edit-role-sel').forEach(sel => {
+    if (!sel.value) return;
+    if (sel.dataset.team === 'blue') blueRoles[sel.dataset.hero] = sel.value;
+    else                              redRoles[sel.dataset.hero]  = sel.value;
+  });
+  const winnerSel = document.getElementById('edit-winner-sel');
+  state.history[_editIndex].blueRoles = blueRoles;
+  state.history[_editIndex].redRoles  = redRoles;
+  state.history[_editIndex].winner    = winnerSel ? winnerSel.value || null : null;
+  await saveHistoryToStorage();
+  renderHistoryList();
+  closeEditModal();
+});
+
+editModalDelete.addEventListener('click', async () => {
+  if (_editIndex < 0) return;
+  if (!confirm('\u00bfEliminar esta partida del historial?')) return;
+  state.history.splice(_editIndex, 1);
+  await saveHistoryToStorage();
+  draftCount = state.history.length + 1;
+  renderHistoryList();
+  closeEditModal();
+});
+
+editModalCancel.addEventListener('click', closeEditModal);
+
+// =====================================================
+// STATS
+// =====================================================
+
+const statsHeroSelect  = document.getElementById('stats-hero-select');
+const statsRoleSelect  = document.getElementById('stats-role-select');
+const statsSearchBtn   = document.getElementById('stats-search-btn');
+const statsResult      = document.getElementById('stats-result');
+
+// Populate hero dropdown
+function populateStatsHeroSelect() {
+  statsHeroSelect.innerHTML = '<option value="">-- Selecciona campeón --</option>';
+  [...HEROES].sort((a,b) => a.name.localeCompare(b.name)).forEach(h => {
+    const opt = document.createElement('option');
+    opt.value = h.name;
+    opt.textContent = h.name;
+    statsHeroSelect.appendChild(opt);
+  });
+}
+populateStatsHeroSelect();
+
+statsSearchBtn.addEventListener('click', computeStats);
+statsHeroSelect.addEventListener('change', () => { if (statsRoleSelect.value) computeStats(); });
+statsRoleSelect.addEventListener('change', () => { if (statsHeroSelect.value) computeStats(); });
+
+function computeStats() {
+  const heroName = statsHeroSelect.value;
+  const role     = statsRoleSelect.value;
+  if (!heroName || !role) {
+    statsResult.innerHTML = '<div class="stats-no-data">⚠️ Selecciona un campeón y una línea para ver las estadísticas.</div>';
+    return;
+  }
+
+  const hero = HEROES.find(h => h.name === heroName);
+
+  // Gather all matches where this hero was picked
+  let totalGames = 0;
+  let wins = 0;
+  const opponentMatchups = {}; // opponentHeroName -> { wins, games }
+
+  state.history.forEach(match => {
+    const blueIdx = (match.bluePicks||[]).indexOf(heroName);
+    const redIdx  = (match.redPicks||[]).indexOf(heroName);
+    if (blueIdx === -1 && redIdx === -1) return;
+
+    const isBlue = blueIdx !== -1;
+    const teamRoles = isBlue ? (match.blueRoles || {}) : (match.redRoles || {});
+    const heroRole  = teamRoles[heroName];
+    if (heroRole !== role) return; // filter by assigned role in that game
+
+    totalGames++;
+    const didWin = match.winner && (
+      (isBlue && match.winner === 'blue') ||
+      (!isBlue && match.winner === 'red')
+    );
+    if (didWin) wins++;
+
+    // Find opponent in same role
+    const enemyRoles = isBlue ? (match.redRoles || {}) : (match.blueRoles || {});
+    const enemyPicks = isBlue ? (match.redPicks  || []) : (match.bluePicks || []);
+    const enemy = enemyPicks.find(p => enemyRoles[p] === role);
+    if (enemy) {
+      if (!opponentMatchups[enemy]) opponentMatchups[enemy] = { wins: 0, games: 0 };
+      opponentMatchups[enemy].games++;
+      if (didWin) opponentMatchups[enemy].wins++;
+    }
+  });
+
+  if (totalGames === 0) {
+    statsResult.innerHTML = `
+      <div class="stats-no-data">
+        <div style="font-size:40px; margin-bottom:12px;">🔍</div>
+        <div>No hay partidas registradas con <strong>${heroName}</strong> en la línea <strong>${ROLE_LABELS[role]}</strong>.</div>
+        <div style="margin-top:8px; font-size:12px; color:var(--text-muted);">Termina drafts y asigna roles en el modal para acumular datos.</div>
+      </div>`;
+    return;
+  }
+
+  const wr = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
+  const wrClass = wr >= 55 ? 'stats-wr-high' : wr >= 45 ? 'stats-wr-mid' : 'stats-wr-low';
+
+  // Matchup table sorted by most games
+  const matchupRows = Object.entries(opponentMatchups)
+    .sort((a,b) => b[1].games - a[1].games)
+    .map(([oppName, data]) => {
+      const oppHero = HEROES.find(h => h.name === oppName);
+      const oppWr = Math.round((data.wins / data.games) * 100);
+      const oppWrClass = oppWr >= 55 ? 'stats-wr-high' : oppWr >= 45 ? 'stats-wr-mid' : 'stats-wr-low';
+      const barColor = oppWr >= 55 ? '#2ed573' : oppWr >= 45 ? '#ffa502' : '#ff4757';
+      return `
+        <div class="matchup-row">
+          <img src="${oppHero ? oppHero.avatar : ''}" onerror="this.style.background='#444'" title="${oppName}" />
+          <span class="matchup-name">${oppName}</span>
+          <div class="stats-wr-bar"><div class="stats-wr-bar-fill" style="width:${oppWr}%; background:${barColor};"></div></div>
+          <span class="matchup-wr ${oppWrClass}">${oppWr}%</span>
+          <span class="matchup-games">(${data.wins}W/${data.games - data.wins}L)</span>
+        </div>`;
+    }).join('');
+
+  const matchupSection = matchupRows
+    ? `<div class="stats-matchup-table"><h4>MATCHUPS VS MISMA LÍNEA</h4>${matchupRows}</div>`
+    : '';
+
+  statsResult.innerHTML = `
+    <div class="stats-result-card">
+      <div class="hero-summary">
+        <img src="${hero ? hero.avatar : ''}" onerror="this.style.background='#333'" />
+        <div>
+          <h3>${heroName}</h3>
+          <div class="role-tag">${ROLE_LABELS[role].toUpperCase()}</div>
+        </div>
+      </div>
+      <div class="stats-stat">
+        <div class="stats-stat-value ${wrClass}">${wr}%</div>
+        <div class="stats-stat-label">Win Rate</div>
+      </div>
+      <div class="stats-stat">
+        <div class="stats-stat-value" style="color:var(--text-primary);">${wins}</div>
+        <div class="stats-stat-label">Victorias</div>
+      </div>
+      <div class="stats-stat">
+        <div class="stats-stat-value" style="color:var(--text-primary);">${totalGames - wins}</div>
+        <div class="stats-stat-label">Derrotas</div>
+      </div>
+      ${matchupSection}
+    </div>`;
+}
+
+// Wire stats view into tab switching
+
+
+// =====================================================
 // TIER LIST
 // =====================================================
 
@@ -997,6 +1333,13 @@ function makeChip(hero) {
 const appTabs = document.getElementById('app-tabs');
 const viewDraft = document.getElementById('view-draft');
 const viewTierlist = document.getElementById('view-tierlist');
+const viewStats = document.getElementById('view-stats');
+
+function hideAllViews() {
+  viewDraft.style.display = 'none';
+  viewTierlist.style.display = 'none';
+  viewStats.style.display = 'none';
+}
 
 appTabs.addEventListener('click', async e => {
   const tab = e.target.closest('.app-tab');
@@ -1006,16 +1349,20 @@ appTabs.addEventListener('click', async e => {
   appTabs.querySelectorAll('.app-tab').forEach(t => t.classList.remove('active'));
   tab.classList.add('active');
 
+  hideAllViews();
+
   if (view === 'draft') {
     viewDraft.style.display = '';
-    viewTierlist.style.display = 'none';
   } else if (view === 'tierlist') {
-    viewDraft.style.display = 'none';
     viewTierlist.style.display = '';
     if (currentUser && Object.keys(tierState).length === 0) {
       await loadTiersFromStorage();
     }
     renderTierList();
+  } else if (view === 'stats') {
+    viewStats.style.display = '';
+    // refresh hero list in case not yet populated
+    populateStatsHeroSelect();
   }
 });
 

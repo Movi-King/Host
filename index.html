@@ -61,6 +61,7 @@
     <nav class="app-tabs" id="app-tabs">
       <button class="app-tab active" data-view="draft" id="tab-draft">DRAFT</button>
       <button class="app-tab" data-view="tierlist" id="tab-tierlist">TIER LIST</button>
+      <button class="app-tab" data-view="stats" id="tab-stats">ESTADÍSTICAS</button>
     </nav>
 
     <!-- ═══ DRAFT VIEW ═══ -->
@@ -182,6 +183,8 @@
         <span id="confirm-text">SELECT A HERO</span>
       </button>
     </div>
+    </section>
+
     </div><!-- /view-draft -->
 
     <!-- ═══ TIER LIST VIEW ═══ -->
@@ -203,9 +206,81 @@
       </section>
     </div><!-- /view-tierlist -->
 
+    <!-- ═══ STATS VIEW ═══ -->
+    <div id="view-stats" style="display:none;">
+      <section class="stats-section">
+        <div class="stats-header">
+          <h2 class="stats-title">ESTADÍSTICAS</h2>
+          <p class="stats-subtitle">Consulta el winrate de un campeón en su línea vs la línea rival.</p>
+        </div>
+        <div class="stats-controls">
+          <div class="stats-select-group">
+            <label class="stats-label">CAMPEÓN</label>
+            <select id="stats-hero-select" class="stats-select">
+              <option value="">-- Selecciona campeón --</option>
+            </select>
+          </div>
+          <div class="stats-select-group">
+            <label class="stats-label">LÍNEA</label>
+            <select id="stats-role-select" class="stats-select">
+              <option value="">-- Selecciona línea --</option>
+              <option value="clash lane">Top (Clash Lane)</option>
+              <option value="jungle">Jungla</option>
+              <option value="mid">Mid</option>
+              <option value="farm">Farm</option>
+              <option value="roam">Roam</option>
+            </select>
+          </div>
+          <button class="stats-btn" id="stats-search-btn">BUSCAR</button>
+        </div>
+        <div class="stats-result" id="stats-result"></div>
+      </section>
+    </div><!-- /view-stats -->
+
   </div><!-- /draft-container -->
 
-  
+  <!-- ═══ ROLE ASSIGNMENT MODAL ═══ -->
+  <div id="role-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:8000; overflow-y:auto; backdrop-filter:blur(8px);">
+    <div class="role-modal-inner">
+      <h2 class="role-modal-title">🏆 DRAFT COMPLETADO — ASIGNA ROLES</h2>
+      <p class="role-modal-sub">Indica qué línea ha jugado cada campeón en esta partida</p>
+      <div class="role-modal-teams">
+        <div class="role-modal-team">
+          <div class="role-team-label blue">EQUIPO AZUL</div>
+          <div id="role-blue-list" class="role-hero-list"></div>
+        </div>
+        <div class="role-modal-team">
+          <div class="role-team-label red">EQUIPO ROJO</div>
+          <div id="role-red-list" class="role-hero-list"></div>
+        </div>
+      </div>
+      <div class="role-modal-result">
+        <label class="stats-label">RESULTADO</label>
+        <div class="role-result-btns">
+          <button class="role-result-btn" data-winner="blue" id="role-win-blue">VICTORIA AZUL</button>
+          <button class="role-result-btn draw" data-winner="draw" id="role-win-draw">EMPATE</button>
+          <button class="role-result-btn" data-winner="red" id="role-win-red">VICTORIA ROJA</button>
+        </div>
+      </div>
+      <div style="text-align:center; margin-top:24px;">
+        <button class="role-modal-save" id="role-modal-save">GUARDAR PARTIDA</button>
+        <button class="role-modal-skip" id="role-modal-skip">OMITIR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ HISTORY EDIT MODAL ═══ -->
+  <div id="edit-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:8000; overflow-y:auto; backdrop-filter:blur(8px);">
+    <div class="role-modal-inner">
+      <h2 class="role-modal-title">✏️ EDITAR PARTIDA</h2>
+      <div id="edit-modal-body"></div>
+      <div style="text-align:center; margin-top:24px; display:flex; gap:12px; justify-content:center;">
+        <button class="role-modal-save" id="edit-modal-save">GUARDAR CAMBIOS</button>
+        <button class="role-modal-skip" id="edit-modal-delete" style="background:rgba(220,38,38,0.2); border-color:#dc2626; color:#f87171;">ELIMINAR PARTIDA</button>
+        <button class="role-modal-skip" id="edit-modal-cancel">CANCELAR</button>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="script.js"></script>
 </body>
