@@ -152,29 +152,28 @@ const ROLE_COLORS = {
 // Standard competitive HOK draft order
 // B = blue, R = red, 'ban' or 'pick'
 const DRAFT_ORDER = [
-  // Ban Phase 1
+  // Ban Phase 1: B-R-B-R
   { team: "blue", type: "ban" },
-  { team: "red", type: "ban" },
+  { team: "red",  type: "ban" },
   { team: "blue", type: "ban" },
-  { team: "red", type: "ban" },
-  // Pick Phase 1
+  { team: "red",  type: "ban" },
+  // Pick Phase 1: B-R-R-B-B-R
   { team: "blue", type: "pick" },
-  { team: "red", type: "pick" },
-  { team: "red", type: "pick" },
+  { team: "red",  type: "pick" },
+  { team: "red",  type: "pick" },
   { team: "blue", type: "pick" },
-  // Ban Phase 2
+  { team: "blue", type: "pick" },
+  { team: "red",  type: "pick" },
+  // Ban Phase 2: R-B-R-B
+  { team: "red",  type: "ban" },
   { team: "blue", type: "ban" },
-  { team: "red", type: "ban" },
+  { team: "red",  type: "ban" },
   { team: "blue", type: "ban" },
-  { team: "red", type: "ban" },
-  // Pick Phase 2
-  { team: "red", type: "pick" },
+  // Pick Phase 2: R-B-B-R
+  { team: "red",  type: "pick" },
   { team: "blue", type: "pick" },
   { team: "blue", type: "pick" },
-  { team: "red", type: "pick" },
-  // Pick Phase 3
-  { team: "red", type: "pick" },
-  { team: "blue", type: "pick" },
+  { team: "red",  type: "pick" },
 ];
 
 // ─── State ───────────────────────────────────────────
@@ -217,13 +216,16 @@ const progressDots = document.getElementById("progress-dots");
 // ─── Init ────────────────────────────────────────────
 let draftCount = 1;
 
-function addDraftToHistory() {
+async function addDraftToHistory() {
   const matchRecord = {
     bluePicks: [...state.bluePicks],
-    redPicks: [...state.redPicks]
+    redPicks: [...state.redPicks],
+    blueBans: [...state.blueBans],
+    redBans: [...state.redBans],
+    date: new Date().toISOString()
   };
   state.history.push(matchRecord);
-  saveHistoryToStorage();
+  await saveHistoryToStorage();
   
   draftCount++;
   renderHistoryList();
@@ -260,33 +262,48 @@ async function saveHistoryToStorage() {
 
 function renderHistoryList() {
   historyList.innerHTML = '';
+  if (state.history.length === 0) {
+    historyList.innerHTML = '<div style="text-align:center; color: #888; padding: 20px;">No drafts yet</div>';
+    return;
+  }
   // Render in reverse so newest is on top
   [...state.history].reverse().forEach((match, index) => {
     const realMatchNum = state.history.length - index;
+    const dateStr = match.date ? new Date(match.date).toLocaleString() : '';
     const historyItem = document.createElement("div");
     historyItem.className = "history-item";
     historyItem.style.display = "block";
     historyItem.style.padding = "12px";
     
+    const heroImg = (name, border) => {
+      const h = HEROES.find(x => x.name === name);
+      return `<img src="${h ? h.avatar : ''}" style="width:28px; height:28px; border-radius:4px; object-fit:cover; border:2px solid ${border};" title="${name}" onerror="this.style.background='#444'">`;
+    };
+
     historyItem.innerHTML = `
-      <div style="font-weight:bold; margin-bottom: 8px; color: var(--gold-primary);">MATCH ${realMatchNum}</div>
-      <div style="display:flex; justify-content:space-between; font-size:12px;">
-        <div style="width:48%;">
-          <div style="color:var(--blue-primary); margin-bottom:4px; font-weight:bold;">BLUE</div>
-          <div style="display:flex; gap:4px; flex-wrap:wrap;">
-            ${match.bluePicks.map(p => {
-               let h = HEROES.find(x => x.name === p);
-               return `<img src="${h ? h.avatar : ''}" style="width:24px; height:24px; border-radius:4px; object-fit:cover; border:1px solid var(--blue-primary);" title="${p}">`;
-            }).join('')}
+      <div style="font-weight:bold; margin-bottom: 6px; color: var(--gold-primary); display:flex; justify-content:space-between; align-items:center;">
+        <span>MATCH ${realMatchNum}</span>
+        <span style="font-size:10px; color:#888; font-weight:normal;">${dateStr}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:11px; gap:8px;">
+        <div style="flex:1;">
+          <div style="color:var(--blue-primary); margin-bottom:4px; font-weight:bold; font-size:10px;">BLUE PICKS</div>
+          <div style="display:flex; gap:3px; flex-wrap:wrap; margin-bottom:6px;">
+            ${(match.bluePicks||[]).map(p => heroImg(p, 'var(--blue-primary)')).join('')}
+          </div>
+          <div style="color:#ff6b6b; margin-bottom:3px; font-weight:bold; font-size:10px;">BLUE BANS</div>
+          <div style="display:flex; gap:3px; flex-wrap:wrap; opacity:0.6;">
+            ${(match.blueBans||[]).map(p => heroImg(p, '#ff6b6b')).join('')}
           </div>
         </div>
-        <div style="width:48%; text-align:right;">
-          <div style="color:var(--red-primary); margin-bottom:4px; font-weight:bold;">RED</div>
-          <div style="display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end;">
-            ${match.redPicks.map(p => {
-               let h = HEROES.find(x => x.name === p);
-               return `<img src="${h ? h.avatar : ''}" style="width:24px; height:24px; border-radius:4px; object-fit:cover; border:1px solid var(--red-primary);" title="${p}">`;
-            }).join('')}
+        <div style="flex:1; text-align:right;">
+          <div style="color:var(--red-primary); margin-bottom:4px; font-weight:bold; font-size:10px;">RED PICKS</div>
+          <div style="display:flex; gap:3px; flex-wrap:wrap; justify-content:flex-end; margin-bottom:6px;">
+            ${(match.redPicks||[]).map(p => heroImg(p, 'var(--red-primary)')).join('')}
+          </div>
+          <div style="color:#ff6b6b; margin-bottom:3px; font-weight:bold; font-size:10px;">RED BANS</div>
+          <div style="display:flex; gap:3px; flex-wrap:wrap; justify-content:flex-end; opacity:0.6;">
+            ${(match.redBans||[]).map(p => heroImg(p, '#ff6b6b')).join('')}
           </div>
         </div>
       </div>
