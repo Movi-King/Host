@@ -2,6 +2,22 @@
 // HONOR OF KINGS — DRAFT PHASE (script.js)
 // =====================================================
 
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDCEUQ2buPUozZQ4IrNpk7qqSJmtT90fJ0",
+  authDomain: "hokdb-d23de.firebaseapp.com",
+  projectId: "hokdb-d23de",
+  storageBucket: "hokdb-d23de.firebasestorage.app",
+  messagingSenderId: "669973001193",
+  appId: "1:669973001193:web:57d9a0c3870d3351cf5178",
+  measurementId: "G-MY4RNW8L24"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 // ─── Hero Database ───────────────────────────────────
 const HEROES = [
   { name: "Annette", role: "roam", color: "#ec4899", avatar: "https://camp.honorofkings.com/camp/admin/hero/head_128-128/49o0xBua.png" },
@@ -162,7 +178,7 @@ const DRAFT_ORDER = [
 ];
 
 // ─── State ───────────────────────────────────────────
-let currentUser = null;
+let currentUser = localStorage.getItem('hokCurrentUser') || null;
 
 let state = {
   currentStep: 0,
@@ -214,20 +230,32 @@ function addDraftToHistory() {
 }
 
 // ─── Persistence ──────────────────────────────────────
-function loadHistoryFromStorage() {
-  const saved = localStorage.getItem('hokDraftHistory_' + currentUser);
-  if (saved) {
-    state.history = JSON.parse(saved);
-    draftCount = state.history.length + 1;
-    renderHistoryList();
-  } else {
+async function loadHistoryFromStorage() {
+  if (!currentUser) return;
+  try {
+    const docRef = doc(db, "users", currentUser);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      state.history = docSnap.data().history || [];
+    } else {
+      state.history = [];
+    }
+  } catch (e) {
+    console.error("Error loading history:", e);
     state.history = [];
-    draftCount = 1;
   }
+  draftCount = state.history.length + 1;
+  renderHistoryList();
 }
 
-function saveHistoryToStorage() {
-  localStorage.setItem('hokDraftHistory_' + currentUser, JSON.stringify(state.history));
+async function saveHistoryToStorage() {
+  if (!currentUser) return;
+  try {
+    const docRef = doc(db, "users", currentUser);
+    await setDoc(docRef, { history: state.history });
+  } catch (e) {
+    console.error("Error saving history:", e);
+  }
 }
 
 function renderHistoryList() {
@@ -267,8 +295,10 @@ function renderHistoryList() {
   });
 }
 
-function init() {
-
+async function init() {
+  if (currentUser) {
+    await loadHistoryFromStorage();
+  }
   resetState();
   renderHeroGrid();
   renderProgressDots();
@@ -280,6 +310,7 @@ function init() {
 
 function resetState() {
   clearInterval(state.timerInterval);
+  const currentHistory = state.history || [];
   state = {
     currentStep: 0,
     selectedHero: null,
@@ -293,7 +324,7 @@ function resetState() {
     searchQuery: "",
     isStarted: false,
     isPaused: false,
-    history: []
+    history: currentHistory
   };
   heroSearch.value = "";
     state.isPaused = false;
@@ -318,8 +349,9 @@ function renderHeroGrid() {
   heroGrid.innerHTML = "";
 
   const filtered = HEROES.filter((h) => {
-    const roleMatch =
-      state.filterRole === "all" || h.role === state.filterRole;
+    const filter = String(state.filterRole).trim().toLowerCase();
+    const heroRole = String(h.role).trim().toLowerCase();
+    const roleMatch = filter === "all" || heroRole === filter;
     const searchMatch = h.name
       .toLowerCase()
       .includes(state.searchQuery.toLowerCase());
@@ -650,14 +682,7 @@ function bindEvents() {
   });
   
   btnAuto.addEventListener("click", autoDraft);
-  btnNewDraft.addEventListener("click", () => {
-    resetState();
-    renderHeroGrid();
-    renderProgressDots();
-    updateUI();
-    startTimer();
-    updateConfirmButton();
-  });
+
 
   // Search
   heroSearch.addEventListener("input", (e) => {
@@ -783,18 +808,24 @@ const loginError = document.getElementById("login-error");
 const btnLogout = document.getElementById("btn-logout");
 const displayUsername = document.getElementById("display-username");
 
-btnLogin.addEventListener("click", () => {
+if (currentUser) {
+  loginOverlay.style.display = "none";
+  displayUsername.textContent = "(" + currentUser + ")";
+}
+
+btnLogin.addEventListener("click", async () => {
   const user = loginUsername.value.trim().toLowerCase();
   const pass = loginPassword.value.trim();
   
   if (USERS[user] && USERS[user] === pass) {
     currentUser = user;
+    localStorage.setItem('hokCurrentUser', user);
     loginOverlay.style.display = "none";
     loginError.style.display = "none";
     displayUsername.textContent = "(" + user + ")";
     
     // Load history for this user
-    loadHistoryFromStorage();
+    await loadHistoryFromStorage();
     renderHeroGrid();
   } else {
     loginError.style.display = "block";
@@ -803,6 +834,7 @@ btnLogin.addEventListener("click", () => {
 
 btnLogout.addEventListener("click", () => {
   currentUser = null;
+  localStorage.removeItem('hokCurrentUser');
   loginUsername.value = "";
   loginPassword.value = "";
   loginOverlay.style.display = "flex";
